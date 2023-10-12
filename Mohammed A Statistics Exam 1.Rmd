@@ -1,0 +1,121 @@
+---
+title: "Statistics Exam 1"
+output: html_document
+date: "2023-10-12"
+author: Mohammed A. Al Muhaymin
+---
+
+#Question 1 Answer:
+#H not = mean difference is 0; there is no relationship between ba degree and working from home
+#H alternative hypothesis = mean difference is not 0; there is a realtionship between ba degree and working from home
+#I choose to do it manually; I will use z test with proportions to analyze whether ba degree has relationship with working from home
+#The mean difference was 0.1849
+#The sample proportion of no Ba = 0.1149 
+#After the test was done, P value was to be very small
+#Small p value means there is high significance in relation to getting a ba degree 
+#It falls under the 95 percent confidence interval or a = 0.05
+#Therefore, we can REJECT the null hypothesis that mean difference is zero
+
+#Question 2 Answer:
+#I wll just analyze the data in the Northeast
+#H not = mean difference is 0; there is no relationship between parents having ba degree 
+#and getting their kids vaccinated
+#from home
+#H alternative hypothesis = mean difference is not 0; there is a realtionship between #parents having ba degree and them working from home
+#I am ignoring the maybys and only focusing in yes or no
+#I choose to do it manually; I will use z test with proportions
+#Propotion of kids not vaccinated is 0.4685
+#Mean difference is 0.07
+#Test statistic is equal to 20.6246
+#P value would be very small indicating there is some significance since p value is #0.0001 < 0.05
+#Therefore, we can REJECT the null hypothesis
+
+```{}
+load("~/Documents/AAAAA ECO B2000/acs2021_ny_data.RData")
+```
+
+#Question 3:
+#t = (Bhat - B sub i) / standard error of b hat = 1.20138 - 1 / 0.01577 = 12.7698 
+
+#Question 4:
+```{}
+require(tidyverse)
+require(class)
+require(caret)
+summary(acs2021$EDUC)
+# We start by removing the problematic "NA" part of the 
+EDUC_nonmissing <- subset(Household_Pulse_data, (DEGFIELD != "NA"))
+summary(EDUC_nonmissing)
+#Attempted to identify value to people education time
+temp1 <- fct_recode(EDUC_nonmissing$EDUC, '7' = 'Grade 12',
+                    '6'='4 years of college', '5'='5+ years of college',
+                    '4'='1 year of college', '3'='3 years of college',
+                    '2'='Nursery school to grade 4', '1' = '(other)')
+
+EDUC_DATA <- as.numeric(levels(temp1))[temp1]
+summary(EDUC_DATA)
+#KNN
+norm_varb <- function(X_in) {
+  (X_in - min(X_in, na.rm = TRUE))/( max(X_in, na.rm = TRUE) - min(X_in, na.rm = TRUE)  )
+}
+
+
+data_use_prelim <- data.frame(norm_varb(as.numeric(EDUC_nonmissing$female)),norm_varb(as.numeric(dat_kidvaxx_nonmissing$hispanic)))
+
+good_obs_data_use <- complete.cases(data_use_prelim,EDUC_nonmissing$EDUC)
+dat_use <- subset(data_use_prelim,good_obs_data_use)
+y_use <- subset(EDUC,good_obs_data_use)
+
+# Algorithm training starts
+
+set.seed(12345)
+NN_obs <- sum(good_obs_data_use == 1)
+select1 <- (runif(NN_obs) < 0.8)
+train_data <- subset(dat_use,select1)
+test_data <- subset(dat_use,(!select1))
+cl_data <- y_use[select1]
+true_data <- y_use[!select1]
+summary(cl_data)
+summary(train_data)
+
+for (indx in seq(1, 9, by= 2)) {
+  pred_y <- knn3Train(train_data, test_data, cl_data, k = indx, l = 0, prob = FALSE, use.all = TRUE)
+  num_correct_labels <- sum(pred_y == true_data)
+  correct_rate <- num_correct_labels/length(true_data)
+  print(c(indx,correct_rate))
+}
+
+# regression modeling start
+
+cl_data_n <- as.numeric(cl_data)
+summary(as.factor(cl_data_n))
+names(train_data) <- c("norm_femal","norm_hispanic")
+
+model_olsv1 <- lm(cl_data_n ~ train_data$norm_recvdvax + train_data$norm_region)
+
+y_hat <- fitted.values(model_olsv1)
+
+# This model shows that with increasing neighbors, there is an increase in their closeness
+mean(y_hat[cl_data_n == 2])
+mean(y_hat[cl_data_n == 3])
+mean(y_hat[cl_data_n == 4])
+mean(y_hat[cl_data_n == 5])
+
+model_olsv1
+
+cl_data_n2 <- as.numeric(cl_data_n == 2) 
+
+model_ols_v2 <- lm(cl_data_n2 ~ train_data$female + train_data$hispanic)
+y_hat_v2 <- fitted.values(model_ols_v2)
+
+# This model gives different coefficient values with similar relationship
+mean(y_hat_v2[cl_data_n2 == 1])
+mean(y_hat_v2[cl_data_n2 == 0])
+
+model_ols_v2
+
+#I attempt to analyze the education level and relation to female hispanics. I think it is interesting because this is an easier subset altough I could add more things
+# All in all with both models, the coefficients show that there is no significant correlation between hispanic and being female
+# This is proven by having both models showing T values < 1 and P values > .05
+```
+
